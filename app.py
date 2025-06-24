@@ -1,8 +1,9 @@
 from doctest import debug
 import os
-from flask import jsonify, Flask
+from flask import jsonify, Flask, request
 from pymongo import MongoClient
 from dotenv import load_dotenv
+from datetime import datetime
 
 
 load_dotenv()
@@ -21,6 +22,26 @@ def home():
 def test_mongo():
     collections = db.list_collection_names()
     return jsonify({"collections": collections})
+
+@app.route("/jobs", methods=["POST"])
+def add_job():
+    data = request.get_json()
+
+    required_fields = ["company", "position", "status"]
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"Missing required field: {field}"}), 400
+
+    job = {
+        "company": data["company"],
+        "position": data["position"],
+        "status": data["status"],
+        "date_applied": data.get("date_applied", datetime.utcnow().strftime("%Y-%m-%d %H:%M"))
+    }
+
+    result = db.jobs.insert_one(job)
+    job["_id"] = str(result.inserted_id)
+    return jsonify(job), 201
 
 if __name__ == "__main__":
     app.run(debug = True)
