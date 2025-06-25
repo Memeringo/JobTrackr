@@ -43,5 +43,14 @@ def add_job():
     job["_id"] = str(result.inserted_id)
     return jsonify(job), 201
 
+@app.route("/jobs", methods=["GET"])
+def get_jobs():
+    jobs = list(db.jobs.find())
+
+    for job in jobs:
+        job["_id"] = str(job["_id"])
+
+    return jsonify(jobs), 200
+
 if __name__ == "__main__":
     app.run(debug = True)
