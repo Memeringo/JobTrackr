@@ -1,6 +1,7 @@
 from doctest import debug
 import os
-from flask import jsonify, Flask, request
+from bson.objectid import ObjectId
+from flask import jsonify, Flask, request, abort
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from datetime import datetime
@@ -51,6 +52,19 @@ def get_jobs():
         job["_id"] = str(job["_id"])
 
     return jsonify(jobs), 200
+
+@app.route("/jobs/<job_id>", methods=["GET"])
+def get_job(job_id):
+    try:
+        job = db.jobs.find_one({"_id": ObjectId(job_id)})
+    except Exception:
+        abort(400, description = "Invalid ID Format")
+
+    if job is None:
+        abort(404, description = "Job Not Found")
+
+    job["_id"] = str(job["_id"])
+    return jsonify(job), 200
 
 if __name__ == "__main__":
     app.run(debug = True)
