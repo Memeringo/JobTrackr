@@ -133,6 +133,21 @@ def update_job(job_id):
     updated_job["_id"] = str(updated_job["_id"])
     return jsonify(updated_job), 200
 
+#DELETE /jobs/<job_id> – Deletes a job application
+@app.route("/jobs/<job_id>", methods=["DELETE"])
+def delete_job(job_id):
+    try:
+        job_object_id = ObjectId(job_id)
+    except Exception:
+        abort(400, description = "Invalid ID Format")
+
+    result = db.jobs.delete_one({"_id": job_object_id})
+
+    if result.deleted_count == 0:
+        abort(404, description = "Job not found")
+
+    return jsonify({"message": "Job deleted successfully"}), 200
+
 # Start the Flask development server
 if __name__ == "__main__":
     app.run(debug = True)
