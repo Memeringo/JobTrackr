@@ -4,7 +4,7 @@
 
 - Python (Flask)
 - MongoDB
-- Docker 
+- Docker + Docker Compose
 - RESTful API
 
 ---
@@ -36,17 +36,26 @@ Features and full documentation will be added soon.
 ### Setup Instructions
 
 #### Prerequisites
-- Python 3.x installed  
+- Python 3.x installed *(only for development or testing outside containers)*  
 - Docker installed and running  
 - Git installed
 
 
 
-#### Clone the repo
+#### Clone the Repository
 ```bash
 git clone https://github.com/Memeringo/JobTrackr.git
 cd JobTrackr
 ```
+#### Run Entire App with Docker Compose
+```bash
+docker-compose up --build
+```
+The API will be available at:
+http://localhost:5000
+
+### Running Flask manually (Alternative):
+
 #### Install Dependencies
 ```bash
 python -m venv .venv
@@ -54,6 +63,7 @@ source .venv/bin/activate  # Linux/Mac
 .\.venv\Scripts\activate   # Windows PowerShell
 pip install -r requirements.txt
 ```
+
 #### Run the Flask App
 ```bash
 python app.py
@@ -87,7 +97,7 @@ The API returns errors in JSON format, for example:
 
 - `400 Bad Request`  
   When input data is missing, invalid, or the ID format is incorrect.
-#### Example error response:
+
 ```json
 {
   "error": "Invalid ID Format"
@@ -108,7 +118,7 @@ The API returns errors in JSON format, for example:
 - [x] Update job application
 - [x] Basic error handling with JSON responses
 - [x] Delete job application
-- [ ] Swagger/OpenAPI documentation
-- [ ] Dockerize full application (not just MongoDB)
+- [x] Docker Compose setup for both API and MongoDB
 - [ ] Authentication (optional)
 - [ ] Connect to Gmail API (experimental)
+- [ ] Swagger/OpenAPI documentation
