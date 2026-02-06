@@ -1,21 +1,65 @@
 
 import os
+from bson.errors import InvalidId
 from bson.objectid import ObjectId
 from flask import jsonify, Flask, request, abort
+from flask_jwt_extended import (
+    JWTManager, create_access_token, jwt_required, get_jwt_identity
+)
 from pymongo import MongoClient
 from dotenv import load_dotenv
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import timedelta
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Initialize Flask application
 app = Flask(__name__)
+app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "dev-secret")
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
+    minutes=int(os.getenv("ACCESS_TOKEN_EXPIRES_MIN", "60"))
+)
+jwt = JWTManager(app)
 
 # Connect to MongoDB using URI from environment variable
 mongo_uri = os.getenv("MONGO_URI")
 client = MongoClient(mongo_uri)
 db = client.get_database() # Gets the default database defined in the URI
+
+# -----------------------------
+# Helpers
+# -----------------------------
+
+#Parse ObjectId or abort 400 with JSON.
+def parse_object_id(id_str: str) -> ObjectId:
+    try:
+        return ObjectId(id_str)
+    except (InvalidId, TypeError):
+        abort(400, description="Invalid ID Format")
+
+#Read JWT identity (string) and convert to ObjectId.
+def current_user_object_id() -> ObjectId:
+    identity = get_jwt_identity()
+    try:
+        return ObjectId(identity)
+    except (InvalidId, TypeError):
+        # This would indicate a bad token identity format
+        abort(422, description="Invalid token identity")
+
+#Convert Mongo job doc into JSON-safe dict.
+def serialize_job(job: dict) -> dict:
+    job["_id"] = str(job["_id"])
+    if "user_id" in job:
+        # you can delete this instead if you don't want to expose it
+        job["user_id"] = str(job["user_id"])
+    return job
+
+
+# -----------------------------
+# JSON error handlers
+# -----------------------------
 
 # Custom error handler for 400 Bad Request – returns JSON instead of HTML
 @app.errorhandler(400)
@@ -30,6 +74,75 @@ def not_found(error):
     response = jsonify({"error": error.description})
     response.status_code = 404
     return response
+
+@app.errorhandler(422)
+def unprocessable_entity(error):
+    response = jsonify({"error": error.description})
+    response.status_code = 422
+    return response
+
+# -----------------------------
+# JWT error handlers
+# -----------------------------
+
+@jwt.unauthorized_loader
+def jwt_missing_token(reason):
+    return jsonify({"error": "missing_token", "message": reason}), 401
+
+
+@jwt.invalid_token_loader
+def jwt_invalid_token(reason):
+    return jsonify({"error": "invalid_token", "message": reason}), 422
+
+
+@jwt.expired_token_loader
+def jwt_expired_token(jwt_header, jwt_payload):
+    return jsonify({"error": "token_expired", "message": "Token has expired"}), 401
+
+
+@jwt.revoked_token_loader
+def jwt_revoked_token(jwt_header, jwt_payload):
+    return jsonify({"error": "token_revoked", "message": "Token has been revoked"}), 401
+
+# -----------------------------
+# Routes
+# -----------------------------
+
+# Creates a new user with hashed password
+@app.route("/register", methods=["POST"])
+def register():
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({"error": "username and password are required"}), 400
+
+    # Check if user already exists
+    if db.users.find_one({"username": username}):
+        return jsonify({"error": "User already exists"}), 400
+
+    hashed_pw = generate_password_hash(password)
+    res = db.users.insert_one({"username": username, "password": hashed_pw})
+    return jsonify({"message": "User registered", "user_id": str(res.inserted_id)}), 201
+
+@app.route("/login", methods=["POST"])
+def login():
+
+    data = request.get_json(silent=True) or {}
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        return jsonify({"error": "username and password are required"}), 400
+
+    user = db.users.find_one({"username": username})
+    if not user or not check_password_hash(user["password"], password):
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    # Put the user's id as the token identity
+    access_token = create_access_token(identity=str(user["_id"]))
+    return jsonify({"access_token": access_token}), 200
 
 # Root route – confirms that the API is live
 @app.route("/")
