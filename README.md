@@ -25,10 +25,11 @@ Features and full documentation will be added soon.
 ---
 
 ### Features
+- User registration and login (JWT authentication)
 - Add new job applications
 - View all job applications
 - View a single job application by ID
-- Delete a single job application by ID
+- Update and delete job applications
 - Runs MongoDB in a Docker container for easy setup
 
 ---
@@ -77,18 +78,57 @@ docker run -d -p 27017:27017 --name jobtrackr-mongo mongo
 
 ---
 
+### Authentication (JWT)
+
+JobTrackr uses JSON Web Tokens (JWT) for authentication.
+
+#### Register
+Create a new user account:
+
+`POST /register`
+
+Body:
+```json
+{
+  "username": "your_username",
+  "password": "your_password"
+}
+```
+
+#### Login
+Authenticate and receive an access token:
+
+`POST /login`
+
+Body:
+```json
+{
+  "username": "your_username",
+  "password": "your_password"
+}
+```
+
+Response:
+```json
+{
+  "access_token": "JWT_TOKEN_HERE"
+}
+```
+---
+
 ### API Endpoints
 
 ### API Overview
 
-| Endpoint        | Method | Description                         | Parameters               |
-|----------------|--------|-------------------------------------|--------------------------|
-| `/jobs`        | POST   | Creates a new job application       | `position`, `company`, `status`, `date_applied` *(optional)* |
-| `/jobs`        | GET    | Retrieves all job applications      | None                     |
-| `/jobs/:id`    | GET    | Retrieves a job application by ID   | `id` (MongoDB ObjectId)  |
-| `/jobs/:id`    | PUT    | Updates a job application by ID     | `company`, `position`, `status` |
-| `/jobs/:id`    | DELETE | Deletes a job application by ID     | `id` (MongoDB ObjectId)  |
-
+| Endpoint        | Method | Auth | Description                         | Parameters |
+|----------------|--------|------|-------------------------------------|------------|
+| `/register`     | POST   | No   | Register a new user                 | `username`, `password` |
+| `/login`        | POST   | No   | Login and get JWT token             | `username`, `password` |
+| `/jobs`         | POST   | No   | Create a new job application        | `position`, `company`, `status`, `date_applied` *(optional)* |
+| `/jobs`         | GET    | No   | Retrieve all job applications       | None |
+| `/jobs/:id`     | GET    | No   | Retrieve a job by ID                | `id` (MongoDB ObjectId) |
+| `/jobs/:id`     | PUT    | No   | Update a job application            | `company`, `position`, `status` |
+| `/jobs/:id`     | DELETE | No   | Delete a job application            | `id` (MongoDB ObjectId) |
 ---
 
 ### Error Handling
@@ -110,6 +150,26 @@ The API returns errors in JSON format, for example:
   "error": "Job Not Found"
 }
 ```
+- `401 Unauthorized`  
+  When authentication is missing or the token has expired.
+
+```json
+{
+  "error": "missing_token",
+  "message": "Missing Authorization Header"
+}
+```
+
+- `422 Unprocessable Entity`
+
+  When the token is invalid.
+
+```json
+{
+  "error": "invalid_token",
+  "message": "Signature verification failed"
+}
+```
 
 ---
 
@@ -119,6 +179,8 @@ The API returns errors in JSON format, for example:
 - [x] Basic error handling with JSON responses
 - [x] Delete job application
 - [x] Docker Compose setup for both API and MongoDB
-- [ ] Authentication (optional)
+- [x] Authentication (JWT)
+- [ ] Protect routes with authentication
+- [ ] Per-User Job Ownership
 - [ ] Connect to Gmail API (experimental)
 - [ ] Swagger/OpenAPI documentation

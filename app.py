@@ -32,14 +32,14 @@ db = client.get_database() # Gets the default database defined in the URI
 # Helpers
 # -----------------------------
 
-#Parse ObjectId or abort 400 with JSON.
+# Parse ObjectId or abort 400 with JSON.
 def parse_object_id(id_str: str) -> ObjectId:
     try:
         return ObjectId(id_str)
     except (InvalidId, TypeError):
         abort(400, description="Invalid ID Format")
 
-#Read JWT identity (string) and convert to ObjectId.
+# Read JWT identity (string) and convert to ObjectId.
 def current_user_object_id() -> ObjectId:
     identity = get_jwt_identity()
     try:
@@ -48,11 +48,10 @@ def current_user_object_id() -> ObjectId:
         # This would indicate a bad token identity format
         abort(422, description="Invalid token identity")
 
-#Convert Mongo job doc into JSON-safe dict.
+# Convert Mongo job doc into JSON-safe dict.
 def serialize_job(job: dict) -> dict:
     job["_id"] = str(job["_id"])
     if "user_id" in job:
-        # you can delete this instead if you don't want to expose it
         job["user_id"] = str(job["user_id"])
     return job
 
